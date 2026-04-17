@@ -18,6 +18,7 @@ model Users {
   email         String
   emailVerified Boolean    @default(false)
   image         String?
+  workflows     WorkFlow[]
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
   sessions      Sessions[]
@@ -74,3 +75,50 @@ model Verifications {
   @@index([identifier])
   @@map("verifications")
 }
+
+model WorkFlow {
+  id String @id @default(uuid())
+  name String
+  flow Json
+  description String?
+
+  user Users @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  executions Execution[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("workflows")
+}
+
+
+model Execution{
+  id String @id
+  name String
+  status String
+  flowSnapShot Json
+  workflow WorkFlow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  workflowId String
+  steps Steps[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("executions")
+}
+
+model Steps{
+  id String @id
+  index Int
+  type String // trigger, action, condition, delay, end
+  metadata Json
+  input Json
+  output Json
+  error String?
+  execuiton Execution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+  executionId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("steps")
+}
+
