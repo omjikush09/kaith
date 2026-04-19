@@ -31,6 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { NodeIcon } from "@/components/workflow/node-icons";
+import { toast } from "sonner";
 
 type Credential = {
   id: string;
@@ -75,7 +76,10 @@ export default function CredentialsPage() {
   const [secret, setSecret] = useState("");
 
   const create = () => {
-    if (!name.trim()) return;
+    if (!name.trim()) {
+      toast.error("Name is required");
+      return;
+    }
     setCreds((c) => [
       ...c,
       {
@@ -88,6 +92,7 @@ export default function CredentialsPage() {
     setName("");
     setSecret("");
     setOpen(false);
+    toast.success("Credential added");
   };
 
   return (
@@ -190,9 +195,10 @@ export default function CredentialsPage() {
                 variant="ghost"
                 size="sm"
                 className="text-destructive hover:text-destructive"
-                onClick={() =>
-                  setCreds((cs) => cs.filter((x) => x.id !== c.id))
-                }
+                onClick={() => {
+                  setCreds((cs) => cs.filter((x) => x.id !== c.id));
+                  toast.success(`Removed "${c.name}"`);
+                }}
               >
                 <Trash2 />
               </Button>

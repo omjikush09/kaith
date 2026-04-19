@@ -32,6 +32,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { fetchWorkflow, saveWorkflow } from "@/lib/api";
+import { toast } from "sonner";
 import type { NodeTemplate, WorkflowNodeData } from "@/lib/types";
 import { nodeTypes } from "./nodes";
 import { NodePalette } from "./node-palette";
@@ -135,6 +136,10 @@ function EditorInner({ workflowId }: { workflowId: string }) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["workflows"] });
       qc.invalidateQueries({ queryKey: ["workflow", workflowId] });
+      toast.success("Workflow saved");
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Failed to save");
     },
   });
 

@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   Clock,
   PlayCircle,
-  Plus,
   Workflow,
   XCircle,
 } from "lucide-react";
@@ -20,6 +19,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { NewWorkflowButton } from "@/components/workflow/new-workflow-button";
 import { Separator } from "@/components/ui/separator";
 import { fetchExecutions, fetchWorkflows } from "@/lib/api";
 import type { ExecutionStatus, WorkflowStatus } from "@/lib/types";
@@ -55,16 +55,17 @@ function timeAgo(iso: string) {
 
 export default function OverviewPage() {
   const workflows = useQuery({
-    queryKey: ["workflows"],
-    queryFn: fetchWorkflows,
+    queryKey: ["workflows", "overview"],
+    queryFn: () => fetchWorkflows({ page: 1, limit: 5 }),
   });
   const executions = useQuery({
     queryKey: ["executions"],
     queryFn: fetchExecutions,
   });
 
-  const total = workflows.data?.length ?? 0;
-  const active = workflows.data?.filter((w) => w.status === "active").length ?? 0;
+  const items = workflows.data?.items ?? [];
+  const total = workflows.data?.pagination.total ?? 0;
+  const active = items.filter((w) => w.status === "active").length;
   const failedRuns =
     executions.data?.filter((e) => e.status === "failed").length ?? 0;
   const runs24h = executions.data?.length ?? 0;
@@ -78,12 +79,7 @@ export default function OverviewPage() {
             What's happening across your workspace.
           </p>
         </div>
-        <Button asChild>
-          <Link href="/workflows/new">
-            <Plus />
-            New workflow
-          </Link>
-        </Button>
+        <NewWorkflowButton />
       </header>
 
       <section className="grid gap-4 p-8 sm:grid-cols-2 lg:grid-cols-4">
@@ -134,7 +130,7 @@ export default function OverviewPage() {
               <div className="p-6 text-sm text-muted-foreground">Loading…</div>
             )}
             <ul className="divide-y">
-              {workflows.data?.map((w) => (
+              {items.map((w) => (
                 <li
                   key={w.id}
                   className="flex items-center justify-between gap-4 px-6 py-3 hover:bg-accent/50"

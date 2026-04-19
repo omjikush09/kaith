@@ -81,7 +81,8 @@ model WorkFlow {
   name String
   flow Json
   description String?
-
+  edges Json?
+  nodes Json?
   user Users @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId String
   executions Execution[]
