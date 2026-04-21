@@ -68,31 +68,17 @@ export const NODE_TEMPLATES: NodeTemplate[] = [
     category: "Actions",
   },
   {
-    type: "slack",
-    kind: "action",
-    label: "Slack",
-    description: "Send a Slack message",
-    category: "Actions",
-  },
-  {
-    type: "email",
-    kind: "action",
-    label: "Email",
-    description: "Send an email",
-    category: "Actions",
-  },
-  {
-    type: "postgres",
-    kind: "action",
-    label: "Postgres",
-    description: "Run a SQL query",
-    category: "Actions",
-  },
-  {
     type: "if",
     kind: "condition",
     label: "If",
     description: "Branch on a condition",
+    category: "Logic",
+  },
+  {
+    type: "js",
+    kind: "action",
+    label: "JavaScript",
+    description: "Run custom JS on the input",
     category: "Logic",
   },
   {
@@ -101,13 +87,6 @@ export const NODE_TEMPLATES: NodeTemplate[] = [
     label: "Output",
     description: "Capture trigger, input and prior node outputs",
     category: "Debug",
-  },
-  {
-    type: "switch",
-    kind: "condition",
-    label: "Switch",
-    description: "Multi-branch routing",
-    category: "Logic",
   },
 ];
 

@@ -30,7 +30,7 @@ const childrenOf = (
 			if (e.source !== nodeId) return false;
 			if (!branch) return true;
 			const sh = (e as unknown as { sourceHandle?: string }).sourceHandle;
-			return sh ? sh === branch : true;
+			return sh === branch;
 		})
 		.map((e) => e.target);
 
@@ -83,24 +83,25 @@ export const runWorkflow = async (executionId: string): Promise<void> => {
 				.map((e) => e.source);
 			const nameOf = (pid: string) =>
 				nodeById.get(pid)?.data?.label?.trim() || pid;
-			const input =
-				parents.length === 0
-					? (snapshot.trigger ?? null)
-					: parents.length === 1
-						? (outputs.get(parents[0]!) ?? null)
-						: parents.reduce<Record<string, unknown>>((acc, pid) => {
-								acc[nameOf(pid)] = outputs.get(pid) ?? null;
-								return acc;
-							}, {});
+
+			// Build the input for this node:
+			//   0 parents → inherit the original trigger payload
+			//   1 parent  → pass that parent's output straight through
+			//   N parents → merge into an object keyed by parent name so the handler can disambiguate
+			let input: unknown;
+			if (parents.length === 0) input = snapshot.trigger ?? null;
+			else if (parents.length === 1) input = outputs.get(parents[0]!) ?? null;
+			else
+				input = Object.fromEntries(
+					parents.map((pid) => [nameOf(pid), outputs.get(pid) ?? null]),
+				);
 
 			const nodesByName: Record<string, unknown> = {};
 			for (const [pid, out] of outputs) {
-				const key = nodeById.get(pid)?.data?.label?.trim() || pid;
-				nodesByName[key] = out;
+				nodesByName[nameOf(pid)] = out;
 			}
 			const ctx = {
 				$input: input,
-				$json: input,
 				$trigger: snapshot.trigger ?? null,
 				$nodes: nodesByName,
 			};

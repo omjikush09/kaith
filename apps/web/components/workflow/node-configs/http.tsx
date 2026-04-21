@@ -45,7 +45,7 @@ export function HttpConfig({ data, setConfig }: NodeConfigFormProps) {
           className="font-mono text-xs"
         />
         <p className="text-xs text-muted-foreground">
-          Use <code>{"{{ $json.field }}"}</code> to interpolate from the
+          Use <code>{"{{ $input.field }}"}</code> to interpolate from the
           previous node.
         </p>
       </div>

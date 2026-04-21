@@ -43,7 +43,9 @@ const createWorkFlow = async (
 	try {
 		assertUniqueNodeNames(req.body.nodes);
 		const workflow = await createWorkflowService(req.body);
-		await syncWorkflowSchedules(workflow);
+		if (workflow.status === "active") {
+			await syncWorkflowSchedules(workflow);
+		}
 		return res.status(201).json({
 			success: true,
 			message: "Workflow created successfully",
@@ -110,7 +112,12 @@ const updateWorkFlow = async (
 	try {
 		if (req.body.nodes !== undefined) assertUniqueNodeNames(req.body.nodes);
 		const workflow = await updateWorkflowService(req.params.id, req.body);
-		await syncWorkflowSchedules(workflow);
+		if (workflow.status === "active") {
+			await syncWorkflowSchedules(workflow);
+		} else {
+			// status flipped to draft/error — tear down any schedules we had installed
+			await removeWorkflowSchedules(workflow.id);
+		}
 		return res.status(200).json({
 			success: true,
 			message: "Workflow updated successfully",

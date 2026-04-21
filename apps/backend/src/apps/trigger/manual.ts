@@ -45,6 +45,7 @@ const triggerManual = async (
 			workflowId,
 			triggerNodeId,
 			payload,
+			allowDraft: true,
 		});
 		if (!execution) throw new BadRequestError("Workflow not found", 404);
 

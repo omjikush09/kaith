@@ -59,7 +59,9 @@ const triggerWorker = new Worker<TriggerJobData>(
 			},
 		});
 		if (!execution) {
-			logger.warn(`[trigger] workflow=${workflowId} not found, skipping`);
+			logger.warn(
+				`[trigger] workflow=${workflowId} not found or not active, skipping`,
+			);
 		}
 	},
 	{ connection: redis, concurrency: 4, autorun: false },

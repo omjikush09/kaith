@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import {
 	Card,
@@ -17,8 +17,10 @@ import { Button } from "@/components/ui/button";
 import { signUp } from "@/lib/auth-client";
 import { toast } from "sonner";
 
-export default function SignUpPage() {
+function SignUpForm() {
 	const router = useRouter();
+	const params = useSearchParams();
+	const next = params.get("next") ?? "/overview";
 
 	const [name, setName] = useState("");
 	const [email, setEmail] = useState("");
@@ -44,10 +46,54 @@ export default function SignUpPage() {
 			toast.error(err instanceof Error ? err.message : "Something went wrong");
 			return;
 		}
-		router.push("/overview");
+		router.push(next);
 		router.refresh();
 	}
 
+	return (
+		<form onSubmit={onSubmit} className="space-y-4">
+			<div className="space-y-1.5">
+				<Label htmlFor="name">Name</Label>
+				<Input
+					id="name"
+					required
+					value={name}
+					onChange={(e) => setName(e.target.value)}
+				/>
+			</div>
+			<div className="space-y-1.5">
+				<Label htmlFor="email">Email</Label>
+				<Input
+					id="email"
+					type="email"
+					autoComplete="email"
+					required
+					value={email}
+					onChange={(e) => setEmail(e.target.value)}
+				/>
+			</div>
+			<div className="space-y-1.5">
+				<Label htmlFor="password">Password</Label>
+				<Input
+					id="password"
+					type="password"
+					autoComplete="new-password"
+					required
+					minLength={8}
+					value={password}
+					onChange={(e) => setPassword(e.target.value)}
+				/>
+			</div>
+			{error && <p className="text-xs text-destructive">{error}</p>}
+			<Button type="submit" className="w-full" disabled={pending}>
+				{pending && <Loader2 className="animate-spin" />}
+				Create account
+			</Button>
+		</form>
+	);
+}
+
+export default function SignUpPage() {
 	return (
 		<Card>
 			<CardHeader>
@@ -55,45 +101,9 @@ export default function SignUpPage() {
 				<CardDescription>Start automating in a minute.</CardDescription>
 			</CardHeader>
 			<CardContent>
-				<form onSubmit={onSubmit} className="space-y-4">
-					<div className="space-y-1.5">
-						<Label htmlFor="name">Name</Label>
-						<Input
-							id="name"
-							required
-							value={name}
-							onChange={(e) => setName(e.target.value)}
-						/>
-					</div>
-					<div className="space-y-1.5">
-						<Label htmlFor="email">Email</Label>
-						<Input
-							id="email"
-							type="email"
-							autoComplete="email"
-							required
-							value={email}
-							onChange={(e) => setEmail(e.target.value)}
-						/>
-					</div>
-					<div className="space-y-1.5">
-						<Label htmlFor="password">Password</Label>
-						<Input
-							id="password"
-							type="password"
-							autoComplete="new-password"
-							required
-							minLength={8}
-							value={password}
-							onChange={(e) => setPassword(e.target.value)}
-						/>
-					</div>
-					{error && <p className="text-xs text-destructive">{error}</p>}
-					<Button type="submit" className="w-full" disabled={pending}>
-						{pending && <Loader2 className="animate-spin" />}
-						Create account
-					</Button>
-				</form>
+				<Suspense fallback={<div className="h-60" />}>
+					<SignUpForm />
+				</Suspense>
 				<p className="mt-4 text-center text-xs text-muted-foreground">
 					Already have one?{" "}
 					<Link href="/sign-in" className="text-foreground underline">

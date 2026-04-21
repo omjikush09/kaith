@@ -139,17 +139,19 @@ export default function WorkflowsPage() {
         {items.map((w) => (
           <Card
             key={w.id}
-            className="group h-full transition-colors hover:border-primary/40"
+            className="group relative h-full transition-colors hover:border-primary/40"
           >
+            <Link
+              href={`/workflows/${w.id}`}
+              aria-label={w.name}
+              className="absolute inset-0 z-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
             <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
-              <Link
-                href={`/workflows/${w.id}`}
-                className="flex flex-1 items-center gap-2"
-              >
+              <div className="flex flex-1 items-center gap-2">
                 <Workflow className="h-4 w-4 text-muted-foreground" />
                 <CardTitle className="text-sm">{w.name}</CardTitle>
-              </Link>
-              <div className="flex items-center gap-2">
+              </div>
+              <div className="relative z-10 flex items-center gap-2">
                 <Badge
                   variant="outline"
                   className={cn("border-transparent", statusBadge[w.status])}
@@ -186,37 +188,35 @@ export default function WorkflowsPage() {
                 </DropdownMenu>
               </div>
             </CardHeader>
-            <Link href={`/workflows/${w.id}`}>
-              <CardContent>
-                <div className="text-xs text-muted-foreground">
-                  {w.nodeCount} nodes
-                </div>
-                <div className="mt-1 text-xs text-muted-foreground">
-                  Last run:{" "}
-                  {w.lastRun ? new Date(w.lastRun).toLocaleString() : "never"}
-                </div>
-                {typeof w.successRate === "number" && (
-                  <div className="mt-3 flex items-center gap-2">
-                    <div className="h-1.5 flex-1 overflow-hidden rounded bg-muted">
-                      <div
-                        className={cn(
-                          "h-full rounded",
-                          w.successRate > 0.8
-                            ? "bg-emerald-500"
-                            : w.successRate > 0.5
-                              ? "bg-amber-500"
-                              : "bg-destructive",
-                        )}
-                        style={{ width: `${w.successRate * 100}%` }}
-                      />
-                    </div>
-                    <span className="text-xs text-muted-foreground">
-                      {Math.round(w.successRate * 100)}%
-                    </span>
+            <CardContent className="pointer-events-none">
+              <div className="text-xs text-muted-foreground">
+                {w.nodeCount} nodes
+              </div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                Last run:{" "}
+                {w.lastRun ? new Date(w.lastRun).toLocaleString() : "never"}
+              </div>
+              {typeof w.successRate === "number" && (
+                <div className="mt-3 flex items-center gap-2">
+                  <div className="h-1.5 flex-1 overflow-hidden rounded bg-muted">
+                    <div
+                      className={cn(
+                        "h-full rounded",
+                        w.successRate > 0.8
+                          ? "bg-emerald-500"
+                          : w.successRate > 0.5
+                            ? "bg-amber-500"
+                            : "bg-destructive",
+                      )}
+                      style={{ width: `${w.successRate * 100}%` }}
+                    />
                   </div>
-                )}
-              </CardContent>
-            </Link>
+                  <span className="text-xs text-muted-foreground">
+                    {Math.round(w.successRate * 100)}%
+                  </span>
+                </div>
+              )}
+            </CardContent>
           </Card>
         ))}
       </div>

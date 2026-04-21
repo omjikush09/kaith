@@ -1,6 +1,7 @@
 import { registerNode, type NodeHandler } from "../engine/registry";
 import { httpRequest } from "./http";
 import { ifBranch } from "./if";
+import { jsExec } from "./js";
 import { outputCollect } from "./output";
 
 const passthrough: NodeHandler = async (input) =>
@@ -14,4 +15,5 @@ registerNode("webhook", passthrough);
 registerNode("schedule", scheduleTrigger);
 registerNode("http", httpRequest);
 registerNode("if", ifBranch);
+registerNode("js", jsExec);
 registerNode("output", outputCollect);

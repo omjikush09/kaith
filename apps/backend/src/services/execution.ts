@@ -3,16 +3,22 @@ import { prisma } from "../lib/prisma";
 import { logger } from "../lib/winston";
 import { executionQueue } from "../lib/queue";
 
-const startExecutionService = async (input: {
+type StartInput = {
 	workflowId: string;
 	triggerNodeId?: string;
 	payload?: unknown;
-}) => {
+	// Manual triggers can run drafts; schedule/webhook require the workflow
+	// to be active.
+	allowDraft?: boolean;
+};
+
+const startExecutionService = async (input: StartInput) => {
 	try {
 		const workflow = await prisma.workFlow.findUnique({
 			where: { id: input.workflowId },
 		});
 		if (!workflow) return null;
+		if (!input.allowDraft && workflow.status !== "active") return null;
 
 		return await prisma.execution.create({
 			data: {
@@ -33,11 +39,7 @@ const startExecutionService = async (input: {
 	}
 };
 
-const enqueueExecutionService = async (input: {
-	workflowId: string;
-	triggerNodeId?: string;
-	payload?: unknown;
-}) => {
+const enqueueExecutionService = async (input: StartInput) => {
 	const execution = await startExecutionService(input);
 	if (!execution) return null;
 	await executionQueue.add(

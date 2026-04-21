@@ -74,12 +74,31 @@ export function ActionNode(props: NodeProps) {
 
 export function ConditionNode(props: NodeProps) {
   return (
-    <NodeShell
-      data={props.data as unknown as WorkflowNodeData}
-      selected={props.selected}
-      withTarget
-      withSource
-    />
+    <div className="relative">
+      <NodeShell
+        data={props.data as unknown as WorkflowNodeData}
+        selected={props.selected}
+        withTarget
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="true"
+        style={{ top: "30%", background: "#10b981" }}
+      />
+      <span className="pointer-events-none absolute -right-10 top-[22%] text-[10px] font-medium text-emerald-600">
+        true
+      </span>
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="false"
+        style={{ top: "70%", background: "#ef4444" }}
+      />
+      <span className="pointer-events-none absolute -right-10 top-[62%] text-[10px] font-medium text-red-600">
+        false
+      </span>
+    </div>
   );
 }
 

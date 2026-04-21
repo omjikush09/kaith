@@ -4,6 +4,7 @@ import type { NodeConfigFormProps } from "./types";
 import { WebhookConfig } from "./webhook";
 import { HttpConfig } from "./http";
 import { IfConfig } from "./if";
+import { JsConfig } from "./js";
 
 export const NODE_CONFIG_FORMS: Record<
   string,
@@ -13,6 +14,7 @@ export const NODE_CONFIG_FORMS: Record<
   webhook: WebhookConfig,
   http: HttpConfig,
   if: IfConfig,
+  js: JsConfig,
 };
 
 export type { NodeConfigFormProps };

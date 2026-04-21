@@ -32,10 +32,13 @@ const triggerWebhook = async (
 				body: req.body,
 			},
 		});
+		if (!execution) {
+			throw new BadRequestError("Workflow is not active", 409);
+		}
 
 		return res.status(202).json({
 			success: true,
-			data: { executionId: execution!.id },
+			data: { executionId: execution.id },
 		});
 	} catch (error) {
 		if (error instanceof BadRequestError) throw error;

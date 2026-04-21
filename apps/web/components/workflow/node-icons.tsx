@@ -3,13 +3,10 @@ import {
   Clock,
   MousePointerClick,
   Globe,
-  Slack,
-  Mail,
-  Database,
   GitBranch,
-  Split,
   Inspect,
   Box,
+  Code2,
   type LucideIcon,
 } from "lucide-react";
 
@@ -18,11 +15,8 @@ const ICONS: Record<string, LucideIcon> = {
   schedule: Clock,
   manual: MousePointerClick,
   http: Globe,
-  slack: Slack,
-  email: Mail,
-  postgres: Database,
   if: GitBranch,
-  switch: Split,
+  js: Code2,
   output: Inspect,
 };
 

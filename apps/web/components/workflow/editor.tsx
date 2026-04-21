@@ -44,8 +44,7 @@ import { nodeTypes } from "./nodes";
 import { NodePalette } from "./node-palette";
 import { NodeConfig } from "./node-config";
 
-let nodeCounter = 100;
-const nextId = () => `n${++nodeCounter}`;
+const nextId = () => `n_${crypto.randomUUID().slice(0, 8)}`;
 
 function EditorInner({ workflowId }: { workflowId: string }) {
   const router = useRouter();
@@ -283,6 +282,7 @@ function EditorInner({ workflowId }: { workflowId: string }) {
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
             onSelectionChange={onSelectionChange}
+            deleteKeyCode={["Backspace", "Delete"]}
             fitView
             proOptions={{ hideAttribution: false }}
           >
