@@ -1,9 +1,12 @@
 import z from "zod";
 import { baseSchema } from "./base";
 
+const workflowStatus = z.enum(["active", "draft", "error"]);
+
 const workflow = z.object({
 	name: z.string().min(1, "Name is required"),
 	description: z.string().optional(),
+	status: workflowStatus.optional().default("draft"),
 	nodes: z.array(z.any()).optional().default([]),
 	edges: z.array(z.any()).optional().default([]),
 	flow: z.any().optional().default({}),
@@ -13,6 +16,7 @@ const workflow = z.object({
 const workflowUpdate = z.object({
 	name: z.string().min(1).optional(),
 	description: z.string().optional(),
+	status: workflowStatus.optional(),
 	nodes: z.array(z.any()).optional(),
 	edges: z.array(z.any()).optional(),
 	flow: z.any().optional(),

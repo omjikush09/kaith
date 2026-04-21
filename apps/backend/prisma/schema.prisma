@@ -79,6 +79,7 @@ model Verifications {
 model WorkFlow {
   id String @id @default(uuid())
   name String
+  status String @default("draft")
   flow Json
   description String?
   edges Json?
@@ -89,37 +90,47 @@ model WorkFlow {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([userId, status])
   @@map("workflows")
 }
 
 
 model Execution{
-  id String @id
+  id String @id @default(uuid())
   name String
-  status String
+  status String @default("pending")
   flowSnapShot Json
+  startedAt DateTime?
+  finishedAt DateTime?
+  error String?
   workflow WorkFlow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
   workflowId String
   steps Steps[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([workflowId, status])
   @@map("executions")
 }
 
 model Steps{
-  id String @id
+  id String @id @default(uuid())
   index Int
+  nodeId String
   type String // trigger, action, condition, delay, end
+  status String @default("pending")
   metadata Json
   input Json
   output Json
   error String?
+  startedAt DateTime?
+  finishedAt DateTime?
   execuiton Execution @relation(fields: [executionId], references: [id], onDelete: Cascade)
   executionId String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([executionId, index])
   @@map("steps")
 }
 

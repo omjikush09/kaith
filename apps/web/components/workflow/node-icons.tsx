@@ -8,6 +8,7 @@ import {
   Database,
   GitBranch,
   Split,
+  Inspect,
   Box,
   type LucideIcon,
 } from "lucide-react";
@@ -22,6 +23,7 @@ const ICONS: Record<string, LucideIcon> = {
   postgres: Database,
   if: GitBranch,
   switch: Split,
+  output: Inspect,
 };
 
 export function NodeIcon({

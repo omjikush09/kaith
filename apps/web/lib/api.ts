@@ -1,5 +1,8 @@
 import type {
-  Execution,
+  ExecutionDetail,
+  ExecutionStatus,
+  ExecutionStep,
+  ExecutionSummary,
   NodeTemplate,
   WorkflowStatus,
   WorkflowSummary,
@@ -27,42 +30,13 @@ type BackendWorkflow = {
   id: string;
   name: string;
   description?: string | null;
+  status?: WorkflowStatus;
   nodes?: Node[] | null;
   edges?: Edge[] | null;
-  flow?: { status?: WorkflowStatus } | null;
   userId: string;
   createdAt: string;
   updatedAt: string;
 };
-
-const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-const EXECUTIONS: Execution[] = [
-  {
-    id: "ex_1",
-    workflowId: "wf_1",
-    workflowName: "Customer onboarding",
-    status: "success",
-    startedAt: "2026-04-17T08:14:00Z",
-    durationMs: 1240,
-  },
-  {
-    id: "ex_2",
-    workflowId: "wf_2",
-    workflowName: "Slack issue notifier",
-    status: "success",
-    startedAt: "2026-04-17T09:01:00Z",
-    durationMs: 530,
-  },
-  {
-    id: "ex_3",
-    workflowId: "wf_4",
-    workflowName: "Sync HubSpot to Postgres",
-    status: "failed",
-    startedAt: "2026-04-17T07:50:00Z",
-    durationMs: 8900,
-  },
-];
 
 export const NODE_TEMPLATES: NodeTemplate[] = [
   {
@@ -72,13 +46,13 @@ export const NODE_TEMPLATES: NodeTemplate[] = [
     description: "Listen for HTTP requests",
     category: "Triggers",
   },
-  {
-    type: "schedule",
-    kind: "trigger",
-    label: "Schedule",
-    description: "Run on a cron schedule",
-    category: "Triggers",
-  },
+  // {
+  //   type: "schedule",
+  //   kind: "trigger",
+  //   label: "Schedule",
+  //   description: "Run on a cron schedule",
+  //   category: "Triggers",
+  // },
   {
     type: "manual",
     kind: "trigger",
@@ -122,6 +96,13 @@ export const NODE_TEMPLATES: NodeTemplate[] = [
     category: "Logic",
   },
   {
+    type: "output",
+    kind: "action",
+    label: "Output",
+    description: "Capture trigger, input and prior node outputs",
+    category: "Debug",
+  },
+  {
     type: "switch",
     kind: "condition",
     label: "Switch",
@@ -142,7 +123,7 @@ function toSummary(w: BackendWorkflow): WorkflowSummary {
   return {
     id: w.id,
     name: w.name,
-    status: w.flow?.status ?? "draft",
+    status: w.status ?? "draft",
     updatedAt: w.updatedAt,
     nodeCount: w.nodes?.length ?? 0,
   };
@@ -152,7 +133,7 @@ function toDetail(w: BackendWorkflow): WorkflowDetail {
   return {
     id: w.id,
     name: w.name,
-    status: w.flow?.status ?? "draft",
+    status: w.status ?? "draft",
     nodes: w.nodes ?? [],
     edges: w.edges ?? [],
   };
@@ -189,9 +170,9 @@ export async function fetchWorkflow(id: string): Promise<WorkflowDetail> {
 export async function saveWorkflow(detail: WorkflowDetail) {
   const payload = {
     name: detail.name,
+    status: detail.status,
     nodes: detail.nodes,
     edges: detail.edges,
-    flow: { status: detail.status },
   };
   const { data } = await http.put<ApiEnvelope<BackendWorkflow>>(
     `/workflow/${detail.id}`,
@@ -204,10 +185,82 @@ export async function deleteWorkflow(id: string): Promise<void> {
   await http.delete(`/workflow/${id}`);
 }
 
-export async function fetchExecutions(): Promise<Execution[]> {
-  await delay(150);
-  return EXECUTIONS;
+export async function triggerManualExecution(
+  workflowId: string,
+  options?: { nodeId?: string; payload?: unknown },
+): Promise<{ executionId: string; status: string }> {
+  const { data } = await http.post<
+    ApiEnvelope<{ executionId: string; status: string }>
+  >("/execution", {
+    workflowId,
+    ...(options?.nodeId ? { nodeId: options.nodeId } : {}),
+    payload: options?.payload,
+  });
+  return data.data;
 }
+
+type BackendExecution = {
+  id: string;
+  name: string;
+  workflowId: string;
+  status: ExecutionStatus;
+  startedAt?: string | null;
+  finishedAt?: string | null;
+  error?: string | null;
+  createdAt: string;
+};
+
+type BackendExecutionStep = {
+  id: string;
+  index: number;
+  nodeId: string;
+  type: string;
+  status: ExecutionStatus;
+  metadata?: { label?: string | null } | null;
+  input: unknown;
+  output: unknown;
+  error?: string | null;
+  startedAt?: string | null;
+  finishedAt?: string | null;
+};
+
+type BackendExecutionDetail = BackendExecution & {
+  steps: BackendExecutionStep[];
+};
+
+export type PaginatedExecutions = {
+  items: ExecutionSummary[];
+  pagination: Pagination;
+};
+
+export async function fetchExecutions(params?: {
+  page?: number;
+  limit?: number;
+  workflowId?: string;
+  status?: ExecutionStatus;
+}): Promise<PaginatedExecutions> {
+  const { data } = await http.get<PaginatedEnvelope<BackendExecution[]>>(
+    "/execution",
+    {
+      params: {
+        page: params?.page ?? 1,
+        limit: params?.limit ?? 20,
+        ...(params?.workflowId ? { workflowId: params.workflowId } : {}),
+        ...(params?.status ? { status: params.status } : {}),
+      },
+    },
+  );
+  return { items: data.data, pagination: data.pagination };
+}
+
+export async function fetchExecution(id: string): Promise<ExecutionDetail> {
+  const { data } = await http.get<ApiEnvelope<BackendExecutionDetail>>(
+    `/execution/${id}`,
+  );
+  return data.data as ExecutionDetail;
+}
+
+export type { ExecutionStep };
 
 export type CreateWorkflowInput = {
   name: string;

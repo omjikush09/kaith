@@ -14,16 +14,39 @@ import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
 import type { Node } from "@xyflow/react";
 import type { WorkflowNodeData } from "@/lib/types";
+import { NODE_CONFIG_FORMS } from "./node-configs";
 
 type Props = {
   node: Node | null;
   onClose: () => void;
   onChange: (id: string, data: Partial<WorkflowNodeData>) => void;
   onDelete: (id: string) => void;
+  siblingNames?: Set<string>;
 };
 
-export function NodeConfig({ node, onClose, onChange, onDelete }: Props) {
+export function NodeConfig({
+  node,
+  onClose,
+  onChange,
+  onDelete,
+  siblingNames,
+}: Props) {
   const data = node?.data as unknown as WorkflowNodeData | undefined;
+  const labelTrimmed = data?.label?.trim() ?? "";
+  const nameError = !labelTrimmed
+    ? "Name is required"
+    : siblingNames?.has(data!.label)
+      ? "Name must be unique"
+      : null;
+
+  const setConfig = (patch: Record<string, unknown>) => {
+    if (!node || !data) return;
+    onChange(node.id, {
+      config: { ...(data.config ?? {}), ...patch },
+    });
+  };
+
+  const Form = data ? NODE_CONFIG_FORMS[data.appType] : undefined;
 
   return (
     <Sheet open={!!node} onOpenChange={(o) => !o && onClose()}>
@@ -46,7 +69,21 @@ export function NodeConfig({ node, onClose, onChange, onDelete }: Props) {
                   onChange={(e) =>
                     onChange(node.id, { label: e.target.value })
                   }
+                  aria-invalid={!!nameError}
+                  className={
+                    nameError ? "border-destructive" : undefined
+                  }
                 />
+                {nameError ? (
+                  <p className="text-xs text-destructive">{nameError}</p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Reference in templates as{" "}
+                    <code className="font-mono">
+                      {`{{ $nodes['${data.label}'].body }}`}
+                    </code>
+                  </p>
+                )}
               </div>
 
               <div className="space-y-1.5">
@@ -61,6 +98,8 @@ export function NodeConfig({ node, onClose, onChange, onDelete }: Props) {
                   placeholder="What does this node do?"
                 />
               </div>
+
+              {Form && <Form node={node} data={data} setConfig={setConfig} />}
 
               <div className="space-y-1.5">
                 <Label>Node ID</Label>

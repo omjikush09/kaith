@@ -21,17 +21,23 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
+  History,
   Loader2,
   Play,
   Save,
   ToggleLeft,
   ToggleRight,
 } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { fetchWorkflow, saveWorkflow } from "@/lib/api";
+import {
+  fetchWorkflow,
+  saveWorkflow,
+  triggerManualExecution,
+} from "@/lib/api";
 import { toast } from "sonner";
 import type { NodeTemplate, WorkflowNodeData } from "@/lib/types";
 import { nodeTypes } from "./nodes";
@@ -88,21 +94,29 @@ function EditorInner({ workflowId }: { workflowId: string }) {
 
   const addNode = useCallback((template: NodeTemplate) => {
     const id = nextId();
-    const newNode: Node = {
-      id,
-      type: template.kind,
-      position: {
-        x: 200 + Math.random() * 200,
-        y: 100 + Math.random() * 200,
-      },
-      data: {
-        label: template.label,
-        kind: template.kind,
-        appType: template.type,
-        description: template.description,
-      } satisfies WorkflowNodeData as unknown as Record<string, unknown>,
-    };
-    setNodes((ns) => [...ns, newNode]);
+    setNodes((ns) => {
+      const taken = new Set(
+        ns.map((n) => (n.data as unknown as WorkflowNodeData).label),
+      );
+      let label = template.label;
+      let i = 2;
+      while (taken.has(label)) label = `${template.label} ${i++}`;
+      const newNode: Node = {
+        id,
+        type: template.kind,
+        position: {
+          x: 200 + Math.random() * 200,
+          y: 100 + Math.random() * 200,
+        },
+        data: {
+          label,
+          kind: template.kind,
+          appType: template.type,
+          description: template.description,
+        } satisfies WorkflowNodeData as unknown as Record<string, unknown>,
+      };
+      return [...ns, newNode];
+    });
   }, []);
 
   const updateNodeData = useCallback(
@@ -124,15 +138,30 @@ function EditorInner({ workflowId }: { workflowId: string }) {
     setEdges((es) => es.filter((e) => e.source !== id && e.target !== id));
   }, []);
 
+  const duplicateName = useMemo(() => {
+    const seen = new Map<string, number>();
+    for (const n of nodes) {
+      const label = (n.data as unknown as WorkflowNodeData).label?.trim() ?? "";
+      if (!label) continue;
+      seen.set(label, (seen.get(label) ?? 0) + 1);
+    }
+    for (const [label, count] of seen) if (count > 1) return label;
+    return null;
+  }, [nodes]);
+
   const save = useMutation({
-    mutationFn: () =>
-      saveWorkflow({
+    mutationFn: () => {
+      if (duplicateName) {
+        throw new Error(`Duplicate node name "${duplicateName}"`);
+      }
+      return saveWorkflow({
         id: workflowId,
         name,
         status: active ? "active" : "draft",
         nodes,
         edges,
-      }),
+      });
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["workflows"] });
       qc.invalidateQueries({ queryKey: ["workflow", workflowId] });
@@ -150,6 +179,27 @@ function EditorInner({ workflowId }: { workflowId: string }) {
     }),
     [nodes, edges],
   );
+
+  const manualNodes = useMemo(
+    () =>
+      nodes.filter(
+        (n) => (n.data as unknown as WorkflowNodeData)?.appType === "manual",
+      ),
+    [nodes],
+  );
+  const hasManualTrigger = manualNodes.length > 0;
+
+  const trigger = useMutation({
+    mutationFn: () =>
+      triggerManualExecution(workflowId, { nodeId: manualNodes[0]?.id }),
+    onSuccess: (res) => {
+      toast.success(`Execution queued (${res.executionId.slice(0, 8)}…)`);
+      router.push(`/executions/${res.executionId}`);
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Failed to trigger");
+    },
+  });
 
   if (isLoading) {
     return (
@@ -185,11 +235,32 @@ function EditorInner({ workflowId }: { workflowId: string }) {
             {active ? <ToggleRight /> : <ToggleLeft />}
             {active ? "Active" : "Inactive"}
           </Button>
+          {hasManualTrigger && (
+            <>
+              <Separator orientation="vertical" className="h-5" />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => trigger.mutate()}
+                disabled={trigger.isPending}
+              >
+                {trigger.isPending ? (
+                  <Loader2 className="animate-spin" />
+                ) : (
+                  <Play />
+                )}
+                {trigger.isPending ? "Triggering" : "Trigger"}
+              </Button>
+            </>
+          )}
           <Separator orientation="vertical" className="h-5" />
-          <Button variant="outline" size="sm">
-            <Play />
-            Test run
+          <Button variant="outline" size="sm" asChild>
+            <Link href={`/executions?workflowId=${workflowId}`}>
+              <History />
+              Executions
+            </Link>
           </Button>
+          <Separator orientation="vertical" className="h-5" />
           <Button
             size="sm"
             onClick={() => save.mutate()}
@@ -250,7 +321,14 @@ function EditorInner({ workflowId }: { workflowId: string }) {
         node={selectedNode}
         onClose={() => setSelectedNode(null)}
         onChange={updateNodeData}
-        onDelete={deleteNode} 
+        onDelete={deleteNode}
+        siblingNames={
+          new Set(
+            nodes
+              .filter((n) => n.id !== selectedNode?.id)
+              .map((n) => (n.data as unknown as WorkflowNodeData).label),
+          )
+        }
       />
     </div>
   );

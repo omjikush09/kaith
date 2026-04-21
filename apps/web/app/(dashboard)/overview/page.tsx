@@ -31,13 +31,18 @@ const statusBadge: Record<WorkflowStatus, string> = {
   error: "bg-destructive/15 text-destructive",
 };
 
-const execIcon: Record<ExecutionStatus, React.ComponentType<{ className?: string }>> = {
+const execIcon: Record<
+  ExecutionStatus,
+  React.ComponentType<{ className?: string }>
+> = {
+  pending: PlayCircle,
   success: CheckCircle2,
   failed: XCircle,
   running: PlayCircle,
 };
 
 const execTone: Record<ExecutionStatus, string> = {
+  pending: "text-muted-foreground",
   success: "text-emerald-500",
   failed: "text-destructive",
   running: "text-amber-500",
@@ -59,16 +64,16 @@ export default function OverviewPage() {
     queryFn: () => fetchWorkflows({ page: 1, limit: 5 }),
   });
   const executions = useQuery({
-    queryKey: ["executions"],
-    queryFn: fetchExecutions,
+    queryKey: ["executions", "overview"],
+    queryFn: () => fetchExecutions({ page: 1, limit: 10 }),
   });
 
   const items = workflows.data?.items ?? [];
   const total = workflows.data?.pagination.total ?? 0;
   const active = items.filter((w) => w.status === "active").length;
-  const failedRuns =
-    executions.data?.filter((e) => e.status === "failed").length ?? 0;
-  const runs24h = executions.data?.length ?? 0;
+  const execItems = executions.data?.items ?? [];
+  const failedRuns = execItems.filter((e) => e.status === "failed").length;
+  const runs24h = executions.data?.pagination.total ?? execItems.length;
 
   return (
     <div className="flex h-full flex-col overflow-y-auto">
@@ -169,20 +174,29 @@ export default function OverviewPage() {
           <Separator />
           <CardContent className="p-0">
             <ul className="divide-y">
-              {executions.data?.map((e) => {
+              {execItems.map((e) => {
                 const Icon = execIcon[e.status];
+                const start = e.startedAt ?? e.createdAt;
+                const dur =
+                  e.startedAt && e.finishedAt
+                    ? new Date(e.finishedAt).getTime() -
+                      new Date(e.startedAt).getTime()
+                    : null;
                 return (
                   <li key={e.id} className="flex items-center gap-3 px-6 py-3">
                     <Icon className={cn("h-4 w-4", execTone[e.status])} />
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-medium">
-                        {e.workflowName}
-                      </div>
+                      <Link
+                        href={`/executions/${e.id}`}
+                        className="truncate text-sm font-medium hover:underline"
+                      >
+                        {e.name}
+                      </Link>
                       <div className="text-xs text-muted-foreground">
-                        {timeAgo(e.startedAt)} ·{" "}
-                        {e.status === "running"
-                          ? "running"
-                          : `${(e.durationMs / 1000).toFixed(1)}s`}
+                        {timeAgo(start)} ·{" "}
+                        {dur != null
+                          ? `${(dur / 1000).toFixed(1)}s`
+                          : e.status}
                       </div>
                     </div>
                   </li>

@@ -1,0 +1,1 @@
+export { outputCollect } from "./collect";

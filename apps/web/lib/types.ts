@@ -20,15 +20,35 @@ export type WorkflowSummary = {
   successRate?: number;
 };
 
-export type ExecutionStatus = "success" | "failed" | "running";
+export type ExecutionStatus = "pending" | "running" | "success" | "failed";
 
-export type Execution = {
+export type ExecutionSummary = {
   id: string;
+  name: string;
   workflowId: string;
-  workflowName: string;
   status: ExecutionStatus;
-  startedAt: string;
-  durationMs: number;
+  startedAt?: string | null;
+  finishedAt?: string | null;
+  error?: string | null;
+  createdAt: string;
+};
+
+export type ExecutionStep = {
+  id: string;
+  index: number;
+  nodeId: string;
+  type: string;
+  status: ExecutionStatus;
+  metadata?: { label?: string | null } | null;
+  input: unknown;
+  output: unknown;
+  error?: string | null;
+  startedAt?: string | null;
+  finishedAt?: string | null;
+};
+
+export type ExecutionDetail = ExecutionSummary & {
+  steps: ExecutionStep[];
 };
 
 export type NodeTemplate = {
