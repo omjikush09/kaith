@@ -15,6 +15,9 @@ const triggerWebhook = async (
 			where: { id: workflowId },
 		});
 		if (!workflow) throw new BadRequestError("Workflow not found", 404);
+		if (workflow.status !== "active") {
+			throw new BadRequestError("Workflow is not active", 409);
+		}
 
 		const nodes = (workflow.nodes ?? []) as FlowNode[];
 		const node = nodes.find((n) => n.id === nodeId);

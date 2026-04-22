@@ -18,6 +18,7 @@ import { NODE_CONFIG_FORMS } from "./node-configs";
 
 type Props = {
   node: Node | null;
+  workflowId: string;
   onClose: () => void;
   onChange: (id: string, data: Partial<WorkflowNodeData>) => void;
   onDelete: (id: string) => void;
@@ -26,6 +27,7 @@ type Props = {
 
 export function NodeConfig({
   node,
+  workflowId,
   onClose,
   onChange,
   onDelete,
@@ -99,7 +101,14 @@ export function NodeConfig({
                 />
               </div>
 
-              {Form && <Form node={node} data={data} setConfig={setConfig} />}
+              {Form && (
+                <Form
+                  node={node}
+                  data={data}
+                  workflowId={workflowId}
+                  setConfig={setConfig}
+                />
+              )}
 
               <div className="space-y-1.5">
                 <Label>Node ID</Label>

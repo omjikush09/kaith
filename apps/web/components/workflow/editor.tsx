@@ -319,6 +319,7 @@ function EditorInner({ workflowId }: { workflowId: string }) {
 
       <NodeConfig
         node={selectedNode}
+        workflowId={workflowId}
         onClose={() => setSelectedNode(null)}
         onChange={updateNodeData}
         onDelete={deleteNode}
