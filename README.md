@@ -1,159 +1,139 @@
-# Turborepo starter
+# Kaith
 
-This Turborepo starter is maintained by the Turborepo core team.
+A self-hostable workflow automation platform. Build workflows visually, trigger them via webhook / schedule / manual run, and execute them asynchronously on a worker pool.
 
-## Using this example
+## Architecture
 
-Run the following command:
+```mermaid
+flowchart LR
+    User(["User"])
 
-```sh
-npx create-turbo@latest
+    subgraph Web["apps/web · Next.js 16"]
+        Editor["Workflow Editor<br/>(xyflow)"]
+        Dashboard["Dashboard<br/>workflows · executions · credentials"]
+    end
+
+    subgraph API["apps/backend · Express API"]
+        AuthR["/api/auth/*<br/>(better-auth)"]
+        WfR["/api/workflow"]
+        ExR["/api/execution"]
+        WhR["/api/webhook/:workflowId/:nodeId"]
+    end
+
+    subgraph Worker["apps/backend · BullMQ Worker"]
+        ExWorker["execution queue<br/>→ runner.ts"]
+        TrigWorker["trigger queue<br/>→ cron fires"]
+        Registry["Node Registry<br/>http · if · js · output<br/>manual · webhook · schedule"]
+    end
+
+    subgraph Data["Data layer"]
+        Postgres[("PostgreSQL<br/>Users · WorkFlow<br/>Execution · Steps")]
+        Redis[("Redis<br/>BullMQ queues")]
+    end
+
+    External["External HTTP<br/>callers / cron fires"]
+
+    User -->|sign-in, edit flow| Web
+    Web -->|REST + cookie session| API
+    External -->|POST webhook| WhR
+
+    AuthR --> Postgres
+    WfR --> Postgres
+    ExR --> Postgres
+    ExR -->|enqueue| Redis
+    WhR -->|enqueue| Redis
+
+    Redis --> ExWorker
+    Redis --> TrigWorker
+    TrigWorker -->|enqueue execution| Redis
+    ExWorker --> Registry
+    Registry --> Postgres
+    ExWorker -->|steps + status| Postgres
 ```
 
-## What's inside?
+## Repository layout
 
-This Turborepo includes the following packages/apps:
-
-### Apps and Packages
-
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
-
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo build
+```
+apps/
+  web/       Next.js 16 dashboard + visual editor (xyflow, tailwind, zustand)
+  backend/   Express API server + BullMQ worker + Prisma schema
+packages/
+  ui/                  shared React components
+  eslint-config/       shared ESLint config
+  typescript-config/   shared tsconfig bases
 ```
 
-Without global `turbo`, use your package manager:
+### `apps/backend`
+
+Two entrypoints share the same codebase:
+
+- `src/index.ts` — HTTP API. Mounts `better-auth` at `/api/auth/*` and the app router at `/api`.
+- `src/worker.ts` — BullMQ worker. Consumes the execution queue (runs workflows via `engine/runner.ts`) and the trigger queue (cron fires → enqueues executions).
+
+Key directories:
+
+- `src/engine/` — workflow runner, node registry, template interpolation (`$input`, `$trigger`, `$nodes`).
+- `src/apps/` — built-in node handlers registered against the engine:
+  - triggers: `manual`, `webhook`, `schedule` (cron)
+  - actions: `http`, `if` (branch), `js` (sandboxed JS), `output`
+- `src/router/` — Express routers for `workflow`, `execution`, `webhook`, `test`.
+- `prisma/schema.prisma` — `Users`, `Sessions`, `Accounts`, `Verifications`, `WorkFlow`, `Execution`, `Steps`.
+
+### `apps/web`
+
+- `app/(auth)/` — sign-in / sign-up flows (better-auth client).
+- `app/(dashboard)/` — `workflows`, `executions`, `credentials`, `overview`, `settings`.
+- `components/workflow/` — xyflow editor, node palette, per-node config panels.
+
+## Execution model
+
+1. A trigger fires (manual run, incoming webhook, or scheduled cron job).
+2. The API creates an `Execution` row with a snapshot of the workflow's nodes + edges and enqueues a job on the BullMQ `execution` queue.
+3. The worker claims the execution with `SELECT … FOR UPDATE SKIP LOCKED`, then walks the graph BFS from the trigger node.
+4. Each node's handler receives `(input, config, ctx)` where `ctx` exposes `$input`, `$trigger`, and `$nodes` (outputs of previously-run parents, keyed by label). Config values are interpolated against that context.
+5. A `Steps` row is written per node with input, output, and status — this is what the Executions UI reads back.
+
+## Prerequisites
+
+- Node.js `>= 18`
+- pnpm `9`
+- PostgreSQL
+- Redis (for BullMQ)
+
+## Getting started
 
 ```sh
-cd my-turborepo
-npx turbo build
-pnpm dlx turbo build
-pnpm exec turbo build
+pnpm install
+
+# apps/backend/.env — set DATABASE_URL, REDIS_URL, auth secrets, PORT, etc.
+# See apps/backend/src/env.ts for the full list.
+
+pnpm --filter backend prisma:migrate
+pnpm --filter backend prisma:generate
 ```
 
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
+Run everything in dev:
 
 ```sh
-turbo build --filter=docs
+pnpm dev                              # turbo: web + backend api
+pnpm --filter backend dev:worker      # BullMQ worker (separate process)
 ```
 
-Without global `turbo`:
+Individual apps:
 
 ```sh
-npx turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
+pnpm --filter web dev                 # Next.js on :3000
+pnpm --filter backend dev             # Express API
 ```
 
-### Develop
+## Scripts
 
-To develop all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
+From the repo root (Turborepo fans these out):
 
 ```sh
-cd my-turborepo
-turbo dev
+pnpm build         # build all apps/packages
+pnpm dev           # dev all (web + backend api)
+pnpm lint          # lint all
+pnpm check-types   # tsc --noEmit across the workspace
+pnpm format        # prettier
 ```
-
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo dev
-pnpm exec turbo dev
-pnpm exec turbo dev
-```
-
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo dev --filter=web
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-```
-
-### Remote Caching
-
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
-
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo login
-```
-
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo login
-pnpm exec turbo login
-pnpm exec turbo login
-```
-
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo link
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo link
-pnpm exec turbo link
-pnpm exec turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
